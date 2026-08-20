@@ -1,0 +1,47 @@
+name: Bug report
+description: Something does not work as expected
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in as much as you can.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you see, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the app
+        2. Load sample data
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: layout
+    attributes:
+      label: Layout
+      options:
+        - Auto
+        - Desktop PC
+        - Mobile Android
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: lang
+    attributes:
+      label: Language
+      placeholder: de / en / fr / zh / ja
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Browser, screenshots, console errors (no private file contents).

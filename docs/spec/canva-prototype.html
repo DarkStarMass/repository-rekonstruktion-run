@@ -1,0 +1,471 @@
+<!doctype><html>
+<html lang="de"><head><script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20260812-01-7d5a412","C":{"Abril Fatface":"YACgEZbkUVE,0","Alfa Slab One":"YACgEYS9sJU,0","Anton":"YACgEcYqQ-A,0","Archivo":"YAHO2-t-jNE,0","Arial":"YAGyDvJ_4Ts,0","Bebas Neue":"YACgESME5ew,0","Bricolage Grotesque":"YAFyMcdwzpc,0","Canva Sans":"YAFLd8sKbwc,2","Caveat":"YALBs2ploWQ,0","Comic Sans MS":"YAHO2VMiyZo,0","Cormorant Garamond":"YAFdJhX-538,0","Courier New":"YAGzXiGs0_8,0","DM Sans":"YAD1aU3sLnI,0","DM Serif Display":"YAD1aYG82rc,0","Forum":"YACgEcnnqB4,0","Fraunces":"YAEul-FRQw4,0","Georgia":"YAGzXkO0pEM,0","Helvetica Neue":"YAFcf6CtJfI,0","Impact":"YAFcfnjI7Vk,0","Inter":"YAFdJvSyp_k,3","Iowan Old Style":"YAGNIFa8j9o,0","Jacques Francois":"YAHO2a5g66Q,0","JetBrains Mono":"YAFdJksXcAk,0","Libre Baskerville":"YACgEUFdPdA,0","Manrope":"YAHO2b2feC4,0","Merriweather":"YACgEXvHxxs,0","Montserrat":"YADLjI9qxTA,0","Nunito":"YACgEX8C5Gg,0","Oleo Script":"YACgEQQ14jI,0","Phantom Sans":"YAHO2E8Pb88,0","Playfair Display":"YACgEYmuCJE,0","Poppins":"YAFdJjbTu24,1","Press Start 2P":"YAFyGr-8pmQ,0","Quicksand":"YADWjpfPmdk,0","Raleway":"YACgEVg3xZg,0","Segoe UI":"YAHNdRD1Klw,0","Source Sans 3":"YAG4lO1Mj10,0","Spectral":"YAHO2rVUHIM,0","Times New Roman":"YAGzXW3gftg,0","Times":"YAGzXW3gftg,0","Ubuntu":"YACgERDU--Q,0","Work Sans":"YAGXhLOKv44,0","Yellowtail":"YACgEYG4kG4,0","ui-monospace":"YADlN8CFZ8Q,0","ui-sans-serif":"YACkoN-xg4g,0"}}');</script><script src="/_sdk/7949ff62d67710d5.telemetry_sdk.js" integrity="sha512-KIvXA82Di44YY/RH9/63A9MuTuavYgDFG8PfErJn7Wli4K0LAOk+coo/aPXk3+ZNL96nHh9VYD4PE+fLes+laQ=="></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Repository, Rekonstruktion, Run</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="/_sdk/0e8d3a91e1c6f495.data_sdk.js" integrity="sha512-c00oDoGjsMgluCLLEyVl3suwEkgjOGGplVFbsilUoBg4aMKNmsL3mwsc9r0dPn95qiSZyjBousQXgROkAW7p/w=="></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #17202a;
+      --paper: #f3f0e8;
+      --panel: #fffdf7;
+      --line: #d8d4ca;
+      --signal: #e7542f;
+      --signal-dark: #bc381e;
+      --muted: #66706b;
+      --code: #1b242c;
+      --code-text: #d9e3da;
+    }
+    [data-theme="dark"] {
+      --ink: #edf0e8;
+      --paper: #151b1f;
+      --panel: #202a2f;
+      --line: #3d484d;
+      --signal: #ff7756;
+      --signal-dark: #ff9a82;
+      --muted: #a9b3ae;
+      --code: #0f1518;
+      --code-text: #e7eee7;
+    }
+    [data-theme="contrast"] {
+      --ink: #ffffff;
+      --paper: #000000;
+      --panel: #080808;
+      --line: #ffffff;
+      --signal: #ffff00;
+      --signal-dark: #ffff00;
+      --muted: #ffffff;
+      --code: #000000;
+      --code-text: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Fira Sans", sans-serif;
+      transition: background .25s ease, color .25s ease;
+    }
+    [data-theme="contrast"] body { font-weight: 700; }
+    .app-shell { width: 100%; min-height: calc(100 * min(var(--vh, 1vh), 1vh)); }
+    .sidebar {
+      background: var(--ink);
+      color: var(--paper);
+      border-right: 1px solid var(--line);
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: .75rem; width: 100%;
+      padding: .75rem .9rem; border-radius: .6rem; text-align: left;
+      color: #d7ddd7; transition: .18s ease;
+    }
+    .nav-item:hover, .nav-item.active { background: var(--signal); color: white; }
+    [data-theme="contrast"] .nav-item:hover, [data-theme="contrast"] .nav-item.active { color: #000; }
+    .rule { border-color: var(--line); }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line);
+      box-shadow: 5px 5px 0 rgba(23,32,42,.12);
+    }
+    [data-theme="dark"] .panel { box-shadow: 5px 5px 0 rgba(0,0,0,.25); }
+    [data-theme="contrast"] .panel { box-shadow: none; border-width: 2px; }
+    .action {
+      background: var(--signal); color: #fff; border: 1px solid var(--signal);
+      transition: transform .15s ease, background .15s ease;
+    }
+    .action:hover { background: var(--signal-dark); transform: translateY(-1px); }
+    [data-theme="contrast"] .action { color: #000; }
+    .quiet-action {
+      border: 1px solid var(--line); color: var(--ink); background: transparent;
+      transition: background .15s ease;
+    }
+    .quiet-action:hover { background: rgba(128,128,128,.12); }
+    .input-field {
+      width: 100%; background: transparent; color: var(--ink);
+      border: 1px solid var(--line); border-radius: .5rem; padding: .75rem .85rem;
+      outline: none;
+    }
+    .input-field:focus { border-color: var(--signal); box-shadow: 0 0 0 3px rgba(231,84,47,.18); }
+    .mono { font-family: "Space Mono", monospace; }
+    .view { display: none; animation: enter .28s ease both; }
+    .view.active { display: block; }
+    .history-row { border-bottom: 1px solid var(--line); }
+    .history-row:last-child { border-bottom: 0; }
+    .status-dot { width: .55rem; height: .55rem; border-radius: 50%; background: #3d9a63; display: inline-block; }
+    .file-row { border-bottom: 1px dashed var(--line); }
+    .file-row:last-child { border-bottom: none; }
+    pre { background: var(--code); color: var(--code-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .toast { opacity: 0; transform: translateY(12px); pointer-events: none; transition: .2s ease; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @keyframes enter { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+    @media (max-width: 767px) {
+      .sidebar { position: static; }
+      .nav-scroll { overflow-x: auto; }
+      .nav-list { display: flex; min-width: max-content; }
+      .nav-item { width: auto; }
+    }
+  </style>
+  <script src="/_sdk/04cc6185e046f597.resizing_sdk.js" type="text/javascript" integrity="sha512-CiE/G92aQF0nxneFg1kdOvXih8sQ1Z2a2QI3+r/WvzJwQqH6+IyB3iL07OkJmpm3ABAaf07+FnqWny98f5sR6w=="></script>
+ </head>
+ <body data-template-id="__page-root" style="background: rgb(243, 240, 232);">
+  <div class="app-shell md:grid md:grid-cols-[260px_1fr]">
+   <aside class="sidebar px-5 py-6 md:sticky md:top-0 md:h-[calc(100*min(var(--vh,1vh),1vh))] md:flex md:flex-col">
+    <header class="pb-5 border-b border-white/20">
+     <div class="flex items-center gap-3">
+      <div class="w-10 h-10 grid place-items-center bg-[#e7542f] text-white rounded-sm"><i data-lucide="git-fork" width="22" height="22"></i>
+      </div>
+      <div>
+       <p class="mono text-[10px] tracking-[.2em] text-[#c7d0c7]">BROWSER TOOLKIT</p>
+       <h1 data-template-id="app-title" class="canva-text font-bold leading-tight" style="color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 17px;">Repository, Rekonstruktion, Run</h1>
+      </div>
+     </div>
+    </header>
+    <nav aria-label="Hauptnavigation" class="nav-scroll mt-5">
+     <div class="nav-list space-y-1"><button class="nav-item active" type="button" data-view="home"><i data-lucide="house" width="17"></i><span data-template-id="nav-home" class="canva-text" style="color: rgb(215, 221, 215); font-weight: 500; font-style: normal; font-size: 15px;">Home</span></button> <button class="nav-item" type="button" data-view="html"><i data-lucide="file-code-2" width="17"></i><span data-template-id="nav-html" class="canva-text" style="color: rgb(215, 221, 215); font-weight: 500; font-style: normal; font-size: 15px;">HTML-Repository</span></button> <button class="nav-item" type="button" data-view="json"><i data-lucide="braces" width="17"></i><span data-template-id="nav-json" class="canva-text" style="color: rgb(215, 221, 215); font-weight: 500; font-style: normal; font-size: 15px;">JSON-Repository</span></button> <button class="nav-item" type="button" data-view="python"><i data-lucide="terminal-square" width="17"></i><span data-template-id="nav-python" class="canva-text" style="color: rgb(215, 221, 215); font-weight: 500; font-style: normal; font-size: 15px;">Python-Struktur</span></button> <button class="nav-item" type="button" data-view="ai"><i data-lucide="bot" width="17"></i><span data-template-id="nav-ai" class="canva-text" style="color: rgb(215, 221, 215); font-weight: 500; font-style: normal; font-size: 15px;">KI-Text-Format</span></button> <button class="nav-item" type="button" data-view="info"><i data-lucide="circle-help" width="17"></i><span data-template-id="nav-info" class="canva-text" style="color: rgb(215, 221, 215); font-weight: 500; font-style: normal; font-size: 15px;">Info</span></button>
+     </div>
+    </nav>
+    <section class="mt-6 md:mt-auto pt-5 border-t border-white/20"><label data-template-id="theme-label" class="canva-text block text-xs font-semibold uppercase tracking-wider text-[#c7d0c7] mb-2" for="theme-select" style="color: rgb(199, 208, 199); font-weight: 600; font-style: normal; font-size: 15px;">Darstellung</label> <select id="theme-select" class="w-full rounded-md px-3 py-2 bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#e7542f]"> <option value="auto">Automatisch</option> <option value="light">Hell</option> <option value="dark">Dunkel</option> <option value="contrast">Kontrast</option> </select>
+    </section>
+   </aside>
+   <main class="w-full px-4 py-7 sm:px-8 lg:px-12">
+    <section id="home-view" class="view active max-w-6xl mx-auto">
+     <header class="mb-8">
+      <p data-template-id="home-eyebrow" class="canva-text mono text-xs font-bold tracking-[.18em] uppercase mb-3" style="color: rgb(231, 84, 47); font-weight: 700; font-style: normal; font-size: 15px;">01 / STARTPUNKT</p>
+      <h2 data-template-id="home-heading" class="canva-text font-bold tracking-tight" style="color: rgb(23, 32, 42); font-weight: 800; font-style: normal; font-size: 23px;">Vom Ordner zur lesbaren Struktur.</h2>
+      <p data-template-id="home-intro" class="canva-text max-w-2xl mt-3 leading-relaxed" style="color: rgb(75, 86, 82); font-weight: 400; font-style: normal; font-size: 17px; line-height: 1.55;">Erfasse eine Repository-Referenz oder analysiere einen lokalen Projektordner. Anschließend stehen dir strukturierte Exporte und modelloptimierte KI-Kontexte bereit.</p>
+     </header>
+     <div class="grid lg:grid-cols-[1.25fr_.75fr] gap-6">
+      <section data-template-id="import-panel" class="canva-panel panel p-5 sm:p-7" style="background: rgb(255, 253, 247);">
+       <div class="flex items-start justify-between gap-4">
+        <div>
+         <h3 data-template-id="import-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">Repository importieren</h3>
+         <p data-template-id="import-help" class="canva-text mt-1 text-sm leading-relaxed" style="color: rgb(102, 112, 107); font-weight: 400; font-style: normal; font-size: 15px; line-height: 1.45;">Wie nutze ich das? Erfasse eine GitHub-URL als Referenz oder wähle einen lokalen Projektordner für die direkte Browseranalyse.</p>
+        </div><i data-lucide="folder-search-2" class="shrink-0" width="26"></i>
+       </div>
+       <form id="github-form" class="mt-6 space-y-3"><label data-template-id="github-label" class="canva-text block font-semibold text-sm" for="github-url" style="color: rgb(23, 32, 42); font-weight: 600; font-style: normal; font-size: 15px;">GitHub-Repository-URL</label>
+        <div class="flex flex-col sm:flex-row gap-2"><input id="github-url" class="input-field mono text-sm" type="url" autocomplete="url"> <button data-template-id="github-button" class="canva-button action rounded-md px-4 py-3 font-bold whitespace-nowrap" type="submit" style="background: rgb(231, 84, 47); color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 15px;">Referenz erfassen</button>
+        </div>
+       </form>
+       <div class="flex items-center gap-3 my-6">
+        <div class="h-px flex-1 rule"></div><span data-template-id="or-label" class="canva-text mono text-xs" style="color: rgb(102, 112, 107); font-weight: 700; font-style: normal; font-size: 15px;">ODER</span>
+        <div class="h-px flex-1 rule"></div>
+       </div><label for="folder-input" data-template-id="folder-button" class="canva-button action rounded-md px-4 py-3 font-bold inline-flex items-center gap-2 cursor-pointer" style="background: rgb(231, 84, 47); color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 15px;">Lokalen Ordner auswählen</label> <input id="folder-input" type="file" webkitdirectory="" directory="" multiple="" class="sr-only">
+       <p data-template-id="privacy-note" class="canva-text mt-4 text-sm leading-relaxed" style="color: rgb(102, 112, 107); font-weight: 400; font-style: normal; font-size: 13px; line-height: 1.45;">Datenschutz-Hinweis: Lokale Dateien werden nur in diesem Browserfenster ausgewertet und nicht an einen externen Server übertragen.</p>
+       <p id="import-message" class="mt-4 text-sm font-semibold" aria-live="polite"></p>
+      </section>
+      <aside data-template-id="analysis-panel" class="canva-panel panel p-5 sm:p-7" style="background: rgb(231, 236, 228);">
+       <div class="flex items-center justify-between">
+        <h3 data-template-id="analysis-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">Analyse-Status</h3><span class="status-dot" aria-hidden="true"></span>
+       </div>
+       <dl class="mt-6 space-y-4">
+        <div class="flex justify-between gap-4 border-b rule pb-3">
+         <dt data-template-id="files-label" class="canva-text text-sm" style="color: rgb(102, 112, 107); font-weight: 400; font-style: normal; font-size: 15px;">Erkannte Dateien</dt>
+         <dd id="file-count" class="mono font-bold">
+          0
+         </dd>
+        </div>
+        <div class="flex justify-between gap-4 border-b rule pb-3">
+         <dt data-template-id="size-label" class="canva-text text-sm" style="color: rgb(102, 112, 107); font-weight: 400; font-style: normal; font-size: 15px;">Gesamtgröße</dt>
+         <dd id="total-size" class="mono font-bold">
+          0 KB
+         </dd>
+        </div>
+        <div class="flex justify-between gap-4">
+         <dt data-template-id="state-label" class="canva-text text-sm" style="color: rgb(102, 112, 107); font-weight: 400; font-style: normal; font-size: 15px;">Verarbeitungsstand</dt>
+         <dd id="analysis-state" class="mono font-bold text-sm">
+          BEREIT
+         </dd>
+        </div>
+       </dl>
+       <div id="file-preview" class="mt-5 max-h-40 overflow-auto text-xs mono"></div>
+      </aside>
+     </div>
+     <section data-template-id="history-panel" class="canva-panel panel mt-7 p-5 sm:p-7" style="background: rgb(255, 253, 247);">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-5">
+       <div>
+        <h3 data-template-id="history-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">History of Use</h3>
+        <p data-template-id="history-help" class="canva-text text-sm mt-1" style="color: rgb(102, 112, 107); font-weight: 400; font-style: normal; font-size: 15px;">Die zehn letzten Aktionen werden in deiner Canva Sheet festgehalten.</p>
+       </div><span id="history-count" class="mono text-xs"></span>
+      </div>
+      <div class="overflow-x-auto">
+       <table class="w-full min-w-[560px] text-left">
+        <thead class="text-xs uppercase mono border-b rule">
+         <tr>
+          <th data-template-id="history-time" class="canva-text pb-3 pr-3" style="color: rgb(102, 112, 107); font-weight: 700; font-style: normal; font-size: 15px;">Zeitpunkt</th>
+          <th data-template-id="history-action" class="canva-text pb-3 pr-3" style="color: rgb(102, 112, 107); font-weight: 700; font-style: normal; font-size: 15px;">Aktion</th>
+          <th data-template-id="history-model" class="canva-text pb-3 pr-3" style="color: rgb(102, 112, 107); font-weight: 700; font-style: normal; font-size: 15px;">Modell</th>
+          <th data-template-id="history-status" class="canva-text pb-3" style="color: rgb(102, 112, 107); font-weight: 700; font-style: normal; font-size: 15px;">Status</th>
+         </tr>
+        </thead>
+        <tbody id="history-list"></tbody>
+       </table>
+      </div>
+      <p id="history-empty" data-template-id="history-empty" class="canva-text py-6 text-sm" style="color: rgb(102, 112, 107); font-weight: 400; font-style: italic; font-size: 15px;">Noch keine Vorgänge vorhanden. Starte mit einer Repository-Referenz oder einem lokalen Ordner.</p>
+     </section>
+    </section>
+    <section id="html-view" class="view max-w-5xl mx-auto">
+     <p data-template-id="html-eyebrow" class="canva-text mono text-xs font-bold tracking-[.18em] uppercase mb-3" style="color: rgb(231, 84, 47); font-weight: 700; font-style: normal; font-size: 15px;">02 / EXPORT</p>
+     <h2 data-template-id="html-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 800; font-style: normal; font-size: 23px;">HTML-Repository</h2>
+     <div data-template-id="html-help-panel" class="canva-banner panel mt-6 p-5" style="background: rgb(231, 236, 228);">
+      <h3 data-template-id="html-help-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">Wie nutze ich das?</h3>
+      <p data-template-id="html-help" class="canva-text mt-2 leading-relaxed" style="color: rgb(75, 86, 82); font-weight: 400; font-style: normal; font-size: 15px; line-height: 1.5;">Prüfe das generierte, minimale HTML-Projektgerüst und lade es anschließend inklusive Manifest als ZIP-Datei herunter.</p>
+     </div>
+     <div class="panel mt-6 p-5 sm:p-7">
+      <pre id="html-preview" class="mono text-xs rounded-md p-5 min-h-[210px]"></pre><button id="html-export" data-template-id="html-export-button" class="canva-button action rounded-md px-5 py-3 mt-5 font-bold inline-flex items-center gap-2" type="button" style="background: rgb(231, 84, 47); color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 15px;">HTML-ZIP herunterladen</button>
+     </div>
+    </section>
+    <section id="json-view" class="view max-w-5xl mx-auto">
+     <p data-template-id="json-eyebrow" class="canva-text mono text-xs font-bold tracking-[.18em] uppercase mb-3" style="color: rgb(231, 84, 47); font-weight: 700; font-style: normal; font-size: 15px;">03 / EXPORT</p>
+     <h2 data-template-id="json-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 800; font-style: normal; font-size: 23px;">JSON-Repository</h2>
+     <div data-template-id="json-help-panel" class="canva-banner panel mt-6 p-5" style="background: rgb(231, 236, 228);">
+      <h3 data-template-id="json-help-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">Wie nutze ich das?</h3>
+      <p data-template-id="json-help" class="canva-text mt-2 leading-relaxed" style="color: rgb(75, 86, 82); font-weight: 400; font-style: normal; font-size: 15px; line-height: 1.5;">Das JSON-Manifest fasst Referenz, Dateipfade, Größen und Analysezeitpunkt maschinenlesbar zusammen.</p>
+     </div>
+     <div class="panel mt-6 p-5 sm:p-7">
+      <pre id="json-preview" class="mono text-xs rounded-md p-5 min-h-[210px]"></pre><button id="json-export" data-template-id="json-export-button" class="canva-button action rounded-md px-5 py-3 mt-5 font-bold inline-flex items-center gap-2" type="button" style="background: rgb(231, 84, 47); color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 15px;">JSON-ZIP herunterladen</button>
+     </div>
+    </section>
+    <section id="python-view" class="view max-w-5xl mx-auto">
+     <p data-template-id="python-eyebrow" class="canva-text mono text-xs font-bold tracking-[.18em] uppercase mb-3" style="color: rgb(231, 84, 47); font-weight: 700; font-style: normal; font-size: 15px;">04 / EXPORT</p>
+     <h2 data-template-id="python-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 800; font-style: normal; font-size: 23px;">Python-Struktur</h2>
+     <div data-template-id="python-help-panel" class="canva-banner panel mt-6 p-5" style="background: rgb(231, 236, 228);">
+      <h3 data-template-id="python-help-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">Wie nutze ich das?</h3>
+      <p data-template-id="python-help" class="canva-text mt-2 leading-relaxed" style="color: rgb(75, 86, 82); font-weight: 400; font-style: normal; font-size: 15px; line-height: 1.5;">Exportiere einen nachvollziehbaren Python-Startpunkt mit eingebettetem Repository-Manifest und erkannter Pfadübersicht.</p>
+     </div>
+     <div class="panel mt-6 p-5 sm:p-7">
+      <pre id="python-preview" class="mono text-xs rounded-md p-5 min-h-[210px]"></pre><button id="python-export" data-template-id="python-export-button" class="canva-button action rounded-md px-5 py-3 mt-5 font-bold inline-flex items-center gap-2" type="button" style="background: rgb(231, 84, 47); color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 15px;">Python-ZIP herunterladen</button>
+     </div>
+    </section>
+    <section id="ai-view" class="view max-w-5xl mx-auto">
+     <p data-template-id="ai-eyebrow" class="canva-text mono text-xs font-bold tracking-[.18em] uppercase mb-3" style="color: rgb(231, 84, 47); font-weight: 700; font-style: normal; font-size: 15px;">05 / KI-KONTEXT</p>
+     <h2 data-template-id="ai-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 800; font-style: normal; font-size: 23px;">KI-Text-Format</h2>
+     <div data-template-id="ai-help-panel" class="canva-banner panel mt-6 p-5" style="background: rgb(231, 236, 228);">
+      <h3 data-template-id="ai-help-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">Wie nutze ich das?</h3>
+      <p data-template-id="ai-help" class="canva-text mt-2 leading-relaxed" style="color: rgb(75, 86, 82); font-weight: 400; font-style: normal; font-size: 15px; line-height: 1.5;">Wähle ein Zielmodell. Der Prompt wird mit modellspezifischer Systeminstruktion, Markdown-Codeblock und Kontextfenster-Schätzung erzeugt.</p>
+     </div>
+     <div class="panel mt-6 p-5 sm:p-7"><label data-template-id="model-label" class="canva-text block font-bold mb-2" for="model-select" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 15px;">Zielmodell</label> <select id="model-select" class="input-field max-w-sm"> <option value="Gemini">Gemini</option> <option value="Claude">Claude</option> <option value="Grok">Grok</option> <option value="TeraAI">TeraAI</option> </select>
+      <div class="mt-5 flex items-center gap-3"><span data-template-id="chunk-label" class="canva-text text-sm font-semibold" style="color: rgb(23, 32, 42); font-weight: 600; font-style: normal; font-size: 15px;">Kontextplanung:</span> <span id="chunk-info" class="mono text-sm"></span>
+      </div>
+      <pre id="ai-output" class="mono text-xs rounded-md p-5 min-h-[260px] mt-4"></pre>
+      <div class="flex flex-wrap gap-3 mt-5"><button id="copy-ai" data-template-id="copy-button" class="canva-button quiet-action rounded-md px-5 py-3 font-bold inline-flex items-center gap-2" type="button" style="background: transparent; color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 15px;">In Zwischenablage kopieren</button> <button id="download-ai" data-template-id="download-button" class="canva-button action rounded-md px-5 py-3 font-bold inline-flex items-center gap-2" type="button" style="background: rgb(231, 84, 47); color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 15px;">TXT herunterladen</button>
+      </div>
+     </div>
+    </section>
+    <section id="info-view" class="view max-w-4xl mx-auto">
+     <p data-template-id="info-eyebrow" class="canva-text mono text-xs font-bold tracking-[.18em] uppercase mb-3" style="color: rgb(231, 84, 47); font-weight: 700; font-style: normal; font-size: 15px;">06 / HINTERGRUND</p>
+     <h2 data-template-id="info-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 800; font-style: normal; font-size: 23px;">Info &amp; Arbeitsweise</h2>
+     <div data-template-id="info-panel" class="canva-panel panel mt-6 p-6 leading-relaxed" style="background: rgb(255, 253, 247);">
+      <h3 data-template-id="info-subheading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">Repository zuerst verstehen.</h3>
+      <p data-template-id="info-body" class="canva-text mt-3" style="color: rgb(75, 86, 82); font-weight: 400; font-style: normal; font-size: 15px; line-height: 1.6;">Repository, Rekonstruktion, Run ist eine clientseitige Arbeitsoberfläche für die strukturierte Übergabe von Projektinformationen. Sie erzeugt keine externe GitHub-Abfrage: GitHub-Links dienen als nachvollziehbare Referenz, während lokale Ordner direkt im Browser analysiert werden.</p>
+      <div class="mt-6 pt-5 border-t rule">
+       <h3 data-template-id="privacy-heading" class="canva-text font-bold" style="color: rgb(23, 32, 42); font-weight: 700; font-style: normal; font-size: 18px;">Datenschutz &amp; Verlauf</h3>
+       <p data-template-id="privacy-body" class="canva-text mt-3" style="color: rgb(75, 86, 82); font-weight: 400; font-style: normal; font-size: 15px; line-height: 1.6;">Der Inhalt lokaler Dateien verbleibt im aktuellen Browserfenster. Nur die Nutzungshistorie – Zeitpunkt, Aktion, Modell und Status – wird in deiner Canva Sheet gespeichert. Du kannst die gespeicherten Vorgänge über die Data-Schaltfläche in Canva einsehen.</p>
+      </div>
+     </div>
+    </section>
+   </main>
+  </div>
+  <div id="toast" class="toast fixed right-5 bottom-5 bg-[#17202a] text-white px-4 py-3 rounded-md shadow-lg mono text-sm z-50" role="status" aria-live="polite"></div>
+  <script src="/_sdk/63d0766a0b897354.editing_sdk.js" integrity="sha512-f0L0FK3V0AFs49fIoHMsa2J/sDSzbdSqTQTeu6RztCRMQlNx0J/xWvxcPhmAqvQxxuVH8BMLSYGEMkIZyLlvxQ=="></script>
+  <script>
+    const appState = { files: [], githubUrl: "", records: [], ready: false };
+    const modelSpecs = {
+      Gemini: { limit: 900000, instruction: "Arbeite analytisch, nenne Annahmen klar und liefere konkrete Änderungsdateien." },
+      Claude: { limit: 180000, instruction: "Analysiere zuerst die Architektur. Bewahre Kontext, begründe Entscheidungen und liefere präzise Patches." },
+      Grok: { limit: 120000, instruction: "Arbeite direkt und technisch. Identifiziere Abhängigkeiten, Risiken und den schnellsten Rekonstruktionspfad." },
+      TeraAI: { limit: 64000, instruction: "Erstelle eine kompakte, strukturierte Rekonstruktion mit klaren nächsten Schritten." }
+    };
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[char]));
+    }
+    function bytes(value) {
+      if (!value) return "0 KB";
+      return value < 1024 * 1024 ? Math.ceil(value / 1024) + " KB" : (value / 1024 / 1024).toFixed(2) + " MB";
+    }
+    function slugify(text) {
+      return (text || "repository").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "repository";
+    }
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+    function manifest() {
+      const total = appState.files.reduce((sum, item) => sum + item.size, 0);
+      return {
+        repository_reference: appState.githubUrl || "Lokaler Ordner",
+        generated_at: new Date().toISOString(),
+        files: appState.files.map(file => ({ path: file.path, size_bytes: file.size, type: file.type || "unbekannt" })),
+        summary: { file_count: appState.files.length, total_bytes: total }
+      };
+    }
+    function updateAnalysis() {
+      const total = appState.files.reduce((sum, item) => sum + item.size, 0);
+      document.getElementById("file-count").textContent = appState.files.length;
+      document.getElementById("total-size").textContent = bytes(total);
+      document.getElementById("analysis-state").textContent = appState.files.length ? "ANALYSIERT" : "BEREIT";
+      const preview = document.getElementById("file-preview");
+      preview.innerHTML = appState.files.slice(0, 8).map(file => `<div class="file-row py-2 flex justify-between gap-3"><span class="truncate">${escapeHtml(file.path)}</span><span>${bytes(file.size)}</span></div>`).join("");
+      if (appState.files.length > 8) preview.innerHTML += `<div class="pt-2 opacity-70">+ ${appState.files.length - 8} weitere Dateien</div>`;
+      renderPreviews();
+    }
+    function htmlSkeleton() {
+      const project = slugify(appState.githubUrl.split("/").pop() || "local-repository");
+      return `<!-- Rekonstruiertes HTML-Projekt: ${project} -->\n<!doctype html>\n<html lang="de">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>${project}</title>\n</head>\n<body>\n  <main>\n    <h1>${project}</h1>\n    <p>Projektstruktur aus ${appState.files.length} analysierten Dateien rekonstruiert.</p>\n  </main>\n</body>\n</html>`;
+    }
+    function pythonSkeleton() {
+      const paths = appState.files.slice(0, 12).map(file => `# - ${file.path}`).join("\n") || "# Noch keine lokalen Dateien importiert.";
+      return `"""Rekonstruktions-Startpunkt.\nErstellt durch Repository, Rekonstruktion, Run.\n"""\n\nPROJECT_MANIFEST = ${JSON.stringify(manifest(), null, 2)}\n\n\ndef describe_repository():\n    return {\n        "files": len(PROJECT_MANIFEST["files"]),\n        "reference": PROJECT_MANIFEST["repository_reference"]\n    }\n\n\nif __name__ == "__main__":\n    print(describe_repository())\n\n# Erkannte Pfade\n${paths}`;
+    }
+    function renderPreviews() {
+      document.getElementById("html-preview").textContent = htmlSkeleton();
+      document.getElementById("json-preview").textContent = JSON.stringify(manifest(), null, 2);
+      document.getElementById("python-preview").textContent = pythonSkeleton();
+      renderAiOutput();
+    }
+    function aiText() {
+      const model = document.getElementById("model-select").value;
+      const spec = modelSpecs[model];
+      const entries = appState.files.map(file => `- \`${file.path}\` (${bytes(file.size)})`).join("\n") || "- Noch keine lokalen Dateien ausgewählt.";
+      const text = `# Repository-Rekonstruktion für ${model}\n\n## System-Instruktion\n${spec.instruction}\n\n## Kontext\nRepository-Referenz: ${appState.githubUrl || "Lokaler Ordner"}\nDateien: ${appState.files.length}\n\n## Dateibaum\n${entries}\n\n## Aufgabe\nAnalysiere diese Repository-Struktur. Erkläre Architektur, Abhängigkeiten und fehlende Kernmodule. Erstelle anschließend einen priorisierten Rekonstruktionsplan und verwende kompatible Markdown-Codeblöcke für jeden Codevorschlag.\n\n\`\`\`json\n${JSON.stringify(manifest(), null, 2)}\n\`\`\``;
+      const estimated = Math.ceil(text.length / 4);
+      const chunks = Math.max(1, Math.ceil(estimated / Math.max(1, Math.floor(spec.limit * .72))));
+      document.getElementById("chunk-info").textContent = `${chunks} Chunk${chunks === 1 ? "" : "s"} · ~${estimated.toLocaleString("de-DE")} Tokens · Limit ${spec.limit.toLocaleString("de-DE")}`;
+      return text;
+    }
+    function renderAiOutput() {
+      document.getElementById("ai-output").textContent = aiText();
+    }
+    function download(blob, filename) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+    async function exportZip(kind) {
+      const zip = new JSZip();
+      const name = slugify(appState.githubUrl.split("/").pop() || "repository-rekonstruktion");
+      zip.file("repository-manifest.json", JSON.stringify(manifest(), null, 2));
+      if (kind === "html") zip.file("index.html", htmlSkeleton());
+      if (kind === "json") zip.file("repository.json", JSON.stringify(manifest(), null, 2));
+      if (kind === "python") zip.file("main.py", pythonSkeleton());
+      const blob = await zip.generateAsync({ type: "blob" });
+      download(blob, `${name}-${kind}.zip`);
+      addHistory(`${kind.toUpperCase()}-ZIP exportiert`, "—", "Erfolgreich");
+      showToast("ZIP-Export wurde erstellt.");
+    }
+    function renderHistory(data) {
+      const list = document.getElementById("history-list");
+      const visible = [...data].sort((a,b) => String(b.timestamp).localeCompare(String(a.timestamp))).slice(0, 10);
+      document.getElementById("history-count").textContent = `${visible.length}/10 EINTRÄGE`;
+      document.getElementById("history-empty").style.display = visible.length ? "none" : "block";
+      const oldRows = new Map([...list.children].map(row => [row.dataset.id, row]));
+      visible.forEach(item => {
+        const id = item.__backendId;
+        let row = oldRows.get(id);
+        const html = `<td class="py-3 pr-3 mono text-xs">${escapeHtml(new Date(item.timestamp).toLocaleString("de-DE"))}</td><td class="py-3 pr-3">${escapeHtml(item.action)}</td><td class="py-3 pr-3 mono text-xs">${escapeHtml(item.model)}</td><td class="py-3"><span class="inline-flex items-center gap-2"><span class="status-dot"></span>${escapeHtml(item.status)}</span></td>`;
+        if (row) { row.innerHTML = html; oldRows.delete(id); }
+        else { row = document.createElement("tr"); row.dataset.id = id; row.className = "history-row"; row.innerHTML = html; list.appendChild(row); }
+      });
+      oldRows.forEach(row => row.remove());
+    }
+    async function addHistory(action, model, status) {
+      if (!appState.ready || appState.records.length >= 999) {
+        if (appState.records.length >= 999) showToast("Das Verlaufslimit von 999 Einträgen ist erreicht.");
+        return;
+      }
+      const result = await window.dataSdk.create({ timestamp: new Date().toISOString(), action, model, status });
+      if (!result.isOk) showToast("Der Verlauf konnte nicht gespeichert werden.");
+    }
+    async function initializeData() {
+      const result = await window.dataSdk.init({
+        onDataChanged(data) {
+          appState.records = data;
+          renderHistory(data);
+        }
+      });
+      if (result.isOk) {
+        appState.ready = true;
+      } else {
+        showToast("Nutzungshistorie ist momentan nicht verfügbar.");
+      }
+    }
+    function applyTheme(choice) {
+      const effective = choice === "auto" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : choice;
+      document.documentElement.dataset.theme = effective;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      applyTheme("auto");
+      initializeData();
+      updateAnalysis();
+
+      document.querySelectorAll("[data-view]").forEach(button => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-view]").forEach(item => item.classList.toggle("active", item === button));
+          document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === button.dataset.view + "-view"));
+        });
+      });
+
+      document.getElementById("theme-select").addEventListener("change", event => applyTheme(event.target.value));
+
+      document.getElementById("github-form").addEventListener("submit", async event => {
+        event.preventDefault();
+        const value = document.getElementById("github-url").value.trim();
+        const message = document.getElementById("import-message");
+        if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(value)) {
+          message.textContent = "Bitte eine vollständige GitHub-Repository-URL eingeben.";
+          message.style.color = "var(--signal)";
+          return;
+        }
+        appState.githubUrl = value.replace(/\/$/, "");
+        message.textContent = "GitHub-Referenz erfasst. Für die Dateianalyse bitte den lokalen Ordner auswählen.";
+        message.style.color = "var(--ink)";
+        updateAnalysis();
+        await addHistory("GitHub-Referenz erfasst", "—", "Erfolgreich");
+      });
+
+      document.getElementById("folder-input").addEventListener("change", async event => {
+        appState.files = [...event.target.files].map(file => ({
+          path: file.webkitRelativePath || file.name,
+          size: file.size,
+          type: file.type
+        }));
+        document.getElementById("import-message").textContent = `${appState.files.length} Dateien wurden lokal analysiert.`;
+        document.getElementById("import-message").style.color = "var(--ink)";
+        updateAnalysis();
+        await addHistory("Lokalen Ordner analysiert", "—", "Erfolgreich");
+      });
+
+      document.getElementById("html-export").addEventListener("click", () => exportZip("html"));
+      document.getElementById("json-export").addEventListener("click", () => exportZip("json"));
+      document.getElementById("python-export").addEventListener("click", () => exportZip("python"));
+      document.getElementById("model-select").addEventListener("change", renderAiOutput);
+
+      document.getElementById("copy-ai").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(aiText());
+          await addHistory("KI-Text kopiert", document.getElementById("model-select").value, "Erfolgreich");
+          showToast("KI-Text wurde in die Zwischenablage kopiert.");
+        } catch {
+          showToast("Kopieren ist in diesem Browser nicht verfügbar.");
+        }
+      });
+
+      document.getElementById("download-ai").addEventListener("click", async () => {
+        const model = document.getElementById("model-select").value;
+        download(new Blob([aiText()], { type: "text/plain;charset=utf-8" }), `${slugify(model)}-repository-prompt.txt`);
+        await addHistory("KI-Text heruntergeladen", model, "Erfolgreich");
+        showToast("TXT-Datei wurde erstellt.");
+      });
+    });
+  </script>
+ 
+</body></html>
