@@ -84,8 +84,14 @@ React 19 · TypeScript · Vite 8 · TanStack Start · Tailwind v4 · Zustand · 
 | Stored | Where |
 | --- | --- |
 | File contents | Current browser tab only |
-| Language, theme, layout, last URL, last 10 actions | `localStorage` |
+| Language, theme, layout, last URL, last 10 actions, export switches, model-limit overrides | `localStorage` |
+| Optional GitHub token | Memory of the current tab only — never stored, never sent to an app server |
 | Optional profile | Better Auth (Google / X) if you sign in |
+
+Exports (prompt, JSON, ZIP) run a secret scan first. Filenames such as `.env` and typical token patterns are omitted until you turn on “Include anyway”.
+
+`nitro` stays pinned at `3.0.260610-beta` because the deploy runtime expects that beta. Do not bump it in app pull requests.
+
 
 ### Project layout
 

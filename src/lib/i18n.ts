@@ -42,9 +42,9 @@ const de: Dict = {
     "Erfasse eine Repository-Referenz, lade ein öffentliches GitHub-Projekt oder analysiere einen lokalen Ordner. Anschließend stehen strukturierte Exporte und modelloptimierte KI-Kontexte bereit.",
   "import.title": "Repository importieren",
   "import.help":
-    "Wie nutze ich das? Gib eine GitHub-URL ein — öffentliche Repos werden direkt im Browser geladen. Alternativ wählst du einen lokalen Ordner oder eine ZIP-Datei. Nichts verlässt dieses Gerät.",
+    "Wie nutze ich das? Gib eine GitHub-URL ein — auch mit Branch oder Unterordner. Öffentliche Repos werden direkt im Browser geladen. Alternativ wählst du einen lokalen Ordner oder eine ZIP-Datei. Nichts verlässt dieses Gerät.",
   "import.githubLabel": "GitHub-Repository-URL",
-  "import.githubPlaceholder": "https://github.com/besitzer/projekt",
+  "import.githubPlaceholder": "https://github.com/besitzer/projekt/tree/main/src",
   "import.githubButton": "Repository laden",
   "import.or": "ODER",
   "import.folder": "Lokalen Ordner auswählen",
@@ -154,6 +154,31 @@ const de: Dict = {
   "login.back": "Zurück zur App",
   "login.google": "Weiter mit Google",
   "login.x": "Weiter mit X",
+  "import.tokenLabel": "Optionales Token",
+  "import.tokenPlaceholder": "github_pat_… bleibt nur in diesem Tab",
+  "import.tokenHelp":
+    "Nur für private Repos oder ein höheres Rate-Limit. Das Token wird nicht gespeichert und nicht an einen App-Server gesendet.",
+  "import.zipTooMany": "Die ZIP enthält zu viele Dateien (Maximum 400).",
+  "import.zipTooBig": "Die ZIP ist zu groß (Maximum 12 MB unkomprimiert).",
+  "import.zipEntry": "Eine Datei in der ZIP überschreitet 2 MB und wurde nicht entpackt.",
+  "import.emptyPath": "Unter diesem GitHub-Pfad liegen keine Dateien.",
+  "secrets.title": "Mögliche Geheimnisse",
+  "secrets.body":
+    "Diese Dateien sehen nach Schlüsseln, Tokens oder .env-Dateien aus. Sie fehlen in Prompt, JSON und ZIP, bis du sie ausdrücklich einschließt.",
+  "secrets.include": "Trotzdem einschließen",
+  "secrets.count": "{count} Treffer",
+  "secrets.file": "Dateiname",
+  "secrets.pattern": "Muster",
+  "python.embed": "Dateiinhalte einbetten",
+  "python.embedHelp":
+    "Standard ist nur das Manifest. Eingeschaltet landen Textinhalte zusätzlich im Python-Skript.",
+  "ai.limitsDate": "Modellgrenzen geprüft am {date}. Änderungen bleiben in diesem Browser.",
+  "ai.limitFor": "Kontextlimit für {model}",
+  "ai.resetLimits": "Standard wiederherstellen",
+  "analysis.ref": "Quelle",
+  "info.secretsTitle": "Geheimnisse vor dem Export",
+  "info.secretsBody":
+    "Vor jedem Export prüft die Werkbank Dateinamen und typische Token-Muster. Treffer werden ausgelassen, bis du „Trotzdem einschließen“ aktivierst.",
 };
 
 const en: Dict = {
@@ -187,9 +212,9 @@ const en: Dict = {
     "Capture a repository reference, load a public GitHub project, or analyse a local folder. Structured exports and model-tuned AI context follow.",
   "import.title": "Import repository",
   "import.help":
-    "How do I use this? Paste a GitHub URL — public repos load in the browser. Or pick a local folder or ZIP. Nothing is uploaded to an app server.",
+    "How do I use this? Paste a GitHub URL — branch and subfolder links work. Public repos load in the browser. Or pick a local folder or ZIP. Nothing is uploaded to an app server.",
   "import.githubLabel": "GitHub repository URL",
-  "import.githubPlaceholder": "https://github.com/owner/project",
+  "import.githubPlaceholder": "https://github.com/owner/project/tree/main/src",
   "import.githubButton": "Load repository",
   "import.or": "OR",
   "import.folder": "Choose local folder",
@@ -299,6 +324,31 @@ const en: Dict = {
   "login.back": "Back to the app",
   "login.google": "Continue with Google",
   "login.x": "Continue with X",
+  "import.tokenLabel": "Optional token",
+  "import.tokenPlaceholder": "github_pat_… stays in this tab only",
+  "import.tokenHelp":
+    "Only for private repos or a higher rate limit. The token is not saved and is not sent to an app server.",
+  "import.zipTooMany": "The ZIP has too many files (maximum 400).",
+  "import.zipTooBig": "The ZIP is too large (maximum 12 MB uncompressed).",
+  "import.zipEntry": "A file in the ZIP is over 2 MB and was not unpacked.",
+  "import.emptyPath": "That GitHub path contains no files.",
+  "secrets.title": "Possible secrets",
+  "secrets.body":
+    "These files look like keys, tokens, or .env files. They stay out of the prompt, JSON, and ZIP until you explicitly include them.",
+  "secrets.include": "Include anyway",
+  "secrets.count": "{count} hits",
+  "secrets.file": "Filename",
+  "secrets.pattern": "Pattern",
+  "python.embed": "Embed file contents",
+  "python.embedHelp":
+    "The default is the manifest only. When this is on, text contents are also written into the Python script.",
+  "ai.limitsDate": "Model limits reviewed on {date}. Your changes stay in this browser.",
+  "ai.limitFor": "Context limit for {model}",
+  "ai.resetLimits": "Restore defaults",
+  "analysis.ref": "Source",
+  "info.secretsTitle": "Secrets before export",
+  "info.secretsBody":
+    "Before every export the workbench checks filenames and typical token patterns. Hits are omitted until you turn on “Include anyway”.",
 };
 
 const fr: Dict = {
@@ -332,9 +382,9 @@ const fr: Dict = {
     "Saisis une référence de dépôt, charge un projet GitHub public ou analyse un dossier local. Les exports structurés et le contexte IA suivent.",
   "import.title": "Importer un dépôt",
   "import.help":
-    "Comment l’utiliser ? Colle une URL GitHub — les dépôts publics se chargent dans le navigateur. Ou choisis un dossier local ou un ZIP. Rien n’est envoyé vers un serveur de l’app.",
+    "Comment l’utiliser ? Colle une URL GitHub — les liens de branche et de sous-dossier fonctionnent. Les dépôts publics se chargent dans le navigateur. Ou choisis un dossier local ou un ZIP. Rien n’est envoyé vers un serveur de l’app.",
   "import.githubLabel": "URL du dépôt GitHub",
-  "import.githubPlaceholder": "https://github.com/proprietaire/projet",
+  "import.githubPlaceholder": "https://github.com/proprietaire/projet/tree/main/src",
   "import.githubButton": "Charger le dépôt",
   "import.or": "OU",
   "import.folder": "Choisir un dossier local",
@@ -444,6 +494,31 @@ const fr: Dict = {
   "login.back": "Retour à l’app",
   "login.google": "Continuer avec Google",
   "login.x": "Continuer avec X",
+  "import.tokenLabel": "Jeton facultatif",
+  "import.tokenPlaceholder": "github_pat_… reste dans cet onglet",
+  "import.tokenHelp":
+    "Uniquement pour les dépôts privés ou une limite d’API plus haute. Le jeton n’est ni enregistré ni envoyé à un serveur de l’app.",
+  "import.zipTooMany": "L’archive ZIP contient trop de fichiers (maximum 400).",
+  "import.zipTooBig": "L’archive ZIP est trop volumineuse (maximum 12 Mo décompressés).",
+  "import.zipEntry": "Un fichier de l’archive dépasse 2 Mo et n’a pas été extrait.",
+  "import.emptyPath": "Ce chemin GitHub ne contient aucun fichier.",
+  "secrets.title": "Secrets possibles",
+  "secrets.body":
+    "Ces fichiers ressemblent à des clés, des jetons ou des fichiers .env. Ils restent hors du prompt, du JSON et du ZIP tant que tu ne les inclus pas.",
+  "secrets.include": "Inclure quand même",
+  "secrets.count": "{count} correspondances",
+  "secrets.file": "Nom de fichier",
+  "secrets.pattern": "Motif",
+  "python.embed": "Intégrer le contenu des fichiers",
+  "python.embedHelp":
+    "Par défaut, seul le manifeste est inclus. Activé, les textes sont aussi écrits dans le script Python.",
+  "ai.limitsDate": "Limites des modèles revues le {date}. Tes ajustements restent dans ce navigateur.",
+  "ai.limitFor": "Limite de contexte pour {model}",
+  "ai.resetLimits": "Rétablir les valeurs par défaut",
+  "analysis.ref": "Source",
+  "info.secretsTitle": "Secrets avant l’export",
+  "info.secretsBody":
+    "Avant chaque export, l’atelier vérifie les noms de fichiers et les motifs de jetons. Les correspondances sont omises tant que « Inclure quand même » est désactivé.",
 };
 
 const zh: Dict = {
@@ -477,9 +552,9 @@ const zh: Dict = {
     "输入仓库地址、加载公开 GitHub 项目，或分析本地文件夹。随后即可导出结构化结果并生成针对模型优化的 AI 上下文。",
   "import.title": "导入仓库",
   "import.help":
-    "怎么用？粘贴 GitHub 链接（公开仓库会在浏览器中加载），或选择本地文件夹 / ZIP。文件不会上传到本应用服务器。",
+    "怎么用？粘贴 GitHub 链接，分支和子目录也可以。公开仓库会在浏览器中加载，或选择本地文件夹 / ZIP。文件不会上传到本应用服务器。",
   "import.githubLabel": "GitHub 仓库 URL",
-  "import.githubPlaceholder": "https://github.com/所有者/项目",
+  "import.githubPlaceholder": "https://github.com/owner/project/tree/main/src",
   "import.githubButton": "加载仓库",
   "import.or": "或",
   "import.folder": "选择本地文件夹",
@@ -584,6 +659,27 @@ const zh: Dict = {
   "login.back": "返回应用",
   "login.google": "使用 Google 继续",
   "login.x": "使用 X 继续",
+  "import.tokenLabel": "可选令牌",
+  "import.tokenPlaceholder": "github_pat_… 只留在此标签页",
+  "import.tokenHelp": "仅用于私有仓库或更高的速率限制。令牌不会保存，也不会发到应用服务器。",
+  "import.zipTooMany": "ZIP 中的文件过多（最多 400 个）。",
+  "import.zipTooBig": "ZIP 过大（解压后最多 12 MB）。",
+  "import.zipEntry": "ZIP 中有文件超过 2 MB，未解压。",
+  "import.emptyPath": "该 GitHub 路径下没有文件。",
+  "secrets.title": "可能的密钥",
+  "secrets.body": "这些文件看起来像密钥、令牌或 .env。在你明确选择包含之前，它们不会进入提示词、JSON 和 ZIP。",
+  "secrets.include": "仍然包含",
+  "secrets.count": "{count} 处",
+  "secrets.file": "文件名",
+  "secrets.pattern": "模式",
+  "python.embed": "嵌入文件内容",
+  "python.embedHelp": "默认只有清单。打开后，文本内容也会写入 Python 脚本。",
+  "ai.limitsDate": "模型上限核对日期：{date}。你的修改只留在此浏览器。",
+  "ai.limitFor": "{model} 的上下文上限",
+  "ai.resetLimits": "恢复默认",
+  "analysis.ref": "来源",
+  "info.secretsTitle": "导出前的密钥检查",
+  "info.secretsBody": "每次导出前，工具会检查文件名和常见令牌模式。在打开「仍然包含」之前，命中项会被略去。",
 };
 
 const ja: Dict = {
@@ -617,9 +713,9 @@ const ja: Dict = {
     "リポジトリ参照の入力、公開GitHubプロジェクトの読み込み、またはローカルフォルダの解析。その後、構造化エクスポートとモデル最適化されたAIコンテキストが使えます。",
   "import.title": "リポジトリを取り込む",
   "import.help":
-    "使い方：GitHubのURLを貼ると公開リポジトリをブラウザで読みます。またはローカルフォルダかZIPを選んでください。アプリのサーバーへは上がりません。",
+    "使い方：GitHubのURLを貼ります。ブランチやサブフォルダのリンクも使えます。公開リポジトリはブラウザで読みます。またはローカルフォルダかZIPを選んでください。アプリのサーバーへは上がりません。",
   "import.githubLabel": "GitHubリポジトリURL",
-  "import.githubPlaceholder": "https://github.com/所有者/プロジェクト",
+  "import.githubPlaceholder": "https://github.com/owner/project/tree/main/src",
   "import.githubButton": "リポジトリを読み込む",
   "import.or": "または",
   "import.folder": "ローカルフォルダを選ぶ",
@@ -726,6 +822,30 @@ const ja: Dict = {
   "login.back": "アプリに戻る",
   "login.google": "Googleで続ける",
   "login.x": "Xで続ける",
+  "import.tokenLabel": "任意のトークン",
+  "import.tokenPlaceholder": "github_pat_… はこのタブだけ",
+  "import.tokenHelp":
+    "非公開リポジトリか、より高いレート制限のためだけに使います。トークンは保存されず、アプリのサーバーにも送られません。",
+  "import.zipTooMany": "ZIP のファイル数が多すぎます（最大 400）。",
+  "import.zipTooBig": "ZIP が大きすぎます（展開後最大 12 MB）。",
+  "import.zipEntry": "ZIP 内のファイルが 2 MB を超えたため、展開しませんでした。",
+  "import.emptyPath": "その GitHub パスにはファイルがありません。",
+  "secrets.title": "秘密情報の可能性",
+  "secrets.body":
+    "これらのファイルは鍵、トークン、.env のように見えます。明示的に含めるまで、プロンプト・JSON・ZIP から外します。",
+  "secrets.include": "それでも含める",
+  "secrets.count": "{count} 件",
+  "secrets.file": "ファイル名",
+  "secrets.pattern": "パターン",
+  "python.embed": "ファイル内容を埋め込む",
+  "python.embedHelp": "標準はマニフェストだけです。オンにするとテキストも Python スクリプトに入ります。",
+  "ai.limitsDate": "モデル上限の確認日: {date}。変更はこのブラウザに残ります。",
+  "ai.limitFor": "{model} のコンテキスト上限",
+  "ai.resetLimits": "既定に戻す",
+  "analysis.ref": "参照",
+  "info.secretsTitle": "書き出し前の秘密情報",
+  "info.secretsBody":
+    "書き出しの前に、ファイル名と典型的なトークンの形を調べます。「それでも含める」を入れるまで、該当ファイルは外します。",
 };
 
 const TABLES: Record<Locale, Dict> = { de, en, fr, zh, ja };

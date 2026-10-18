@@ -28,10 +28,10 @@ export type RepoManifest = {
 
 export type AiModel = "Gemini" | "Claude" | "Grok" | "TeraAI";
 
-export const MODEL_SPECS: Record<
-  AiModel,
-  { limit: number; instruction: string }
-> = {
+/** Reviewed against published context windows. Override per browser in the AI view. */
+export const MODEL_SPECS_AS_OF = "2026-10-18";
+
+export const MODEL_SPECS: Record<AiModel, { limit: number; instruction: string }> = {
   Gemini: {
     limit: 900_000,
     instruction:
@@ -49,10 +49,19 @@ export const MODEL_SPECS: Record<
   },
   TeraAI: {
     limit: 64_000,
-    instruction:
-      "Produce a compact, structured reconstruction with clear next steps.",
+    instruction: "Produce a compact, structured reconstruction with clear next steps.",
   },
 };
+
+export type ModelLimitOverrides = Partial<Record<AiModel, number>>;
+
+export function modelLimit(model: AiModel, overrides?: ModelLimitOverrides): number {
+  const custom = overrides?.[model];
+  if (typeof custom === "number" && Number.isFinite(custom) && custom >= 1_000) {
+    return Math.floor(custom);
+  }
+  return MODEL_SPECS[model].limit;
+}
 
 const SKIP_SEGMENTS = new Set([
   "node_modules",
@@ -81,6 +90,80 @@ const TEXT_EXT =
 const MAX_FILE_CONTENT = 180_000;
 const MAX_FILES_WITH_CONTENT = 80;
 const MAX_TOTAL_CONTENT = 1_600_000;
+export const PROMPT_FILE_CAP = 8_000;
+
+export const ZIP_LIMITS = {
+  maxFiles: 400,
+  maxTotalBytes: 12 * 1024 * 1024,
+  maxEntryBytes: 2 * 1024 * 1024,
+} as const;
+
+export class EngineError extends Error {
+  code: string;
+
+  constructor(code: string, message?: string) {
+    super(message || code);
+    this.name = "EngineError";
+    this.code = code;
+  }
+}
+
+export function assertZipBudget(count: number, totalBytes: number, entryBytes: number): void {
+  if (entryBytes > ZIP_LIMITS.maxEntryBytes) throw new EngineError("zip-entry");
+  if (count >= ZIP_LIMITS.maxFiles) throw new EngineError("zip-files");
+  if (totalBytes + Math.max(0, entryBytes) > ZIP_LIMITS.maxTotalBytes) {
+    throw new EngineError("zip-bytes");
+  }
+}
+
+const SECRET_NAME =
+  /(?:^|\/)(?:\.env(?:\.[^/]*)?|.*\.(?:pem|p12|pfx|keystore)$|(?:id_rsa|id_ed25519|id_dsa|id_ecdsa)(?:\.pub)?$|credentials\.json|secrets?\.(?:json|ya?ml|toml|txt)$|service-account.*\.json|\.npmrc|\.pypirc|\.netrc|\.aws\/credentials|\.kube\/config)$/i;
+
+const SECRET_PATTERNS: Array<{ label: string; re: RegExp }> = [
+  { label: "private-key", re: /-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY-----/ },
+  { label: "github-token", re: /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/ },
+  { label: "github-pat", re: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/ },
+  { label: "aws-access-key", re: /\bAKIA[0-9A-Z]{16}\b/ },
+  { label: "slack-token", re: /\bxox[baprs]-[A-Za-z0-9-]{10,}/ },
+  { label: "google-api-key", re: /\bAIza[0-9A-Za-z\-_]{35}\b/ },
+  { label: "openai-style-key", re: /\bsk-[A-Za-z0-9]{20,}\b/ },
+  {
+    label: "secret-assignment",
+    re: /(?:api[_-]?key|secret|token|password|passwd|pwd)\s*[:=]\s*['"][^'"\s]{12,}['"]/i,
+  },
+];
+
+export type SecretHit = {
+  path: string;
+  kind: "filename" | "pattern";
+  label: string;
+};
+
+export function scanSecrets(files: RepoFile[]): SecretHit[] {
+  const hits: SecretHit[] = [];
+  for (const file of files) {
+    if (SECRET_NAME.test(file.path)) {
+      hits.push({ path: file.path, kind: "filename", label: "filename" });
+      continue;
+    }
+    if (!file.content) continue;
+    const sample = file.content.slice(0, 200_000);
+    for (const rule of SECRET_PATTERNS) {
+      if (rule.re.test(sample)) {
+        hits.push({ path: file.path, kind: "pattern", label: rule.label });
+        break;
+      }
+    }
+  }
+  return hits;
+}
+
+/** Drop likely secrets unless the visitor explicitly opts in. */
+export function filesForExport(files: RepoFile[], includeSecrets = false): RepoFile[] {
+  if (includeSecrets) return files;
+  const blocked = new Set(scanSecrets(files).map((hit) => hit.path));
+  return files.filter((file) => !blocked.has(file.path));
+}
 
 export function shouldSkipPath(path: string): boolean {
   return path.split("/").some((seg) => SKIP_SEGMENTS.has(seg) || seg === ".DS_Store");
@@ -102,18 +185,62 @@ export function formatBytes(value: number): string {
   return `${(value / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function parseGithubUrl(
-  raw: string,
-): { owner: string; repo: string } | null {
+export type GithubLocation = {
+  owner: string;
+  repo: string;
+  mode: "root" | "tree" | "blob";
+  hint?: string;
+};
+
+export function parseGithubUrl(raw: string): GithubLocation | null {
   const value = raw.trim();
   const match = value.match(
-    /^https?:\/\/github\.com\/([^/]+)\/([^/#?]+)/i,
+    /^https?:\/\/github\.com\/([^/\s]+)\/([^/\s#?]+?)(?:\.git)?(?:\/(tree|blob)\/([^?#]+))?(?:[?#].*)?$/i,
   );
   if (!match) return null;
   const owner = match[1];
-  const repo = match[2].replace(/\.git$/i, "").replace(/\/$/, "");
+  const repo = match[2].replace(/\.git$/i, "");
   if (!owner || !repo || owner === "." || repo === ".") return null;
-  return { owner, repo };
+  const mode = (match[3]?.toLowerCase() as "tree" | "blob" | undefined) ?? "root";
+  const hint = match[4] ? safeDecode(match[4]).replace(/\/+$/, "") : undefined;
+  return { owner, repo, mode, hint: hint || undefined };
+}
+
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+export function splitGithubHint(
+  defaultBranch: string,
+  hint: string | undefined,
+  mode: GithubLocation["mode"],
+): { branch: string; subdir: string; filePath?: string } | null {
+  const branch = defaultBranch || "main";
+  if (!hint || mode === "root") return { branch, subdir: "" };
+  if (hint === branch || hint.startsWith(`${branch}/`)) {
+    const rest = hint === branch ? "" : hint.slice(branch.length + 1);
+    return mode === "blob" ? blobSplit(branch, rest) : { branch, subdir: rest };
+  }
+  const first = hint.split("/")[0] ?? "";
+  if (/^[0-9a-f]{7,40}$/i.test(first)) {
+    const rest = hint.split("/").slice(1).join("/");
+    return mode === "blob" ? blobSplit(first, rest) : { branch: first, subdir: rest };
+  }
+  return null;
+}
+
+function blobSplit(branch: string, rest: string): { branch: string; subdir: string; filePath?: string } {
+  const parts = rest.split("/").filter(Boolean);
+  const file = parts[parts.length - 1];
+  return {
+    branch,
+    subdir: parts.slice(0, -1).join("/"),
+    filePath: file ? parts.join("/") : undefined,
+  };
 }
 
 function isBinaryPath(path: string): boolean {
@@ -211,9 +338,7 @@ function attachContent(files: RepoFile[]): RepoFile[] {
     used += file.content.length;
     filled += 1;
   }
-  return files.map((file) =>
-    allow.has(file.path) ? file : { ...file, content: undefined },
-  );
+  return files.map((file) => (allow.has(file.path) ? file : { ...file, content: undefined }));
 }
 
 const SAMPLE_README = `# spice-rack
@@ -255,16 +380,17 @@ export function sampleFiles(): RepoFile[] {
     { path: "README.md", content: SAMPLE_README, type: "text/markdown" },
     {
       path: "package.json",
-      content: JSON.stringify(
-        {
-          name: "spice-rack",
-          private: true,
-          type: "module",
-          scripts: { start: "node src/index.ts" },
-        },
-        null,
-        2,
-      ) + "\n",
+      content:
+        JSON.stringify(
+          {
+            name: "spice-rack",
+            private: true,
+            type: "module",
+            scripts: { start: "node src/index.ts" },
+          },
+          null,
+          2,
+        ) + "\n",
       type: "application/json",
     },
     { path: "src/index.ts", content: SAMPLE_INDEX, type: "text/typescript" },
@@ -290,7 +416,8 @@ export async function readFolderFiles(fileList: FileList | File[]): Promise<Repo
   const incoming = [...fileList];
   const collected: RepoFile[] = [];
   for (const file of incoming) {
-    const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+    const path =
+      (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
     if (shouldSkipPath(path)) continue;
     const binary = isBinaryPath(path);
     let encoding: "text" | "binary" = binary ? "binary" : "text";
@@ -317,16 +444,33 @@ export async function readFolderFiles(fileList: FileList | File[]): Promise<Repo
   return attachContent(collected.sort((a, b) => a.path.localeCompare(b.path)));
 }
 
+type ZipEntry = {
+  dir: boolean;
+  name: string;
+  uncompressedSize?: number;
+  async: (type: "uint8array") => Promise<Uint8Array>;
+};
+
 export async function readZipFiles(file: File): Promise<RepoFile[]> {
   const JSZip = (await import("jszip")).default;
   const zip = await JSZip.loadAsync(file);
   const collected: RepoFile[] = [];
-  const entries = Object.values(zip.files);
+  let total = 0;
+  const entries = Object.values(zip.files) as ZipEntry[];
   for (const entry of entries) {
     if (entry.dir) continue;
     const path = entry.name.replace(/^\/+/, "");
     if (shouldSkipPath(path)) continue;
+    const declared = entry.uncompressedSize ?? 0;
+    assertZipBudget(collected.length, total, declared || 0);
+    if (!declared && file.size > ZIP_LIMITS.maxTotalBytes) {
+      throw new EngineError("zip-bytes");
+    }
     const bytes = await entry.async("uint8array");
+    if (!declared) assertZipBudget(collected.length, total, bytes.byteLength);
+    if (bytes.byteLength > ZIP_LIMITS.maxEntryBytes) throw new EngineError("zip-entry");
+    total += bytes.byteLength;
+    if (total > ZIP_LIMITS.maxTotalBytes) throw new EngineError("zip-bytes");
     const binary = isBinaryPath(path) || !looksLikeText(bytes);
     collected.push({
       path,
@@ -339,22 +483,33 @@ export async function readZipFiles(file: File): Promise<RepoFile[]> {
   return attachContent(collected.sort((a, b) => a.path.localeCompare(b.path)));
 }
 
-async function githubJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
+function githubHeaders(token?: string, accept?: string): Headers {
+  const headers = new Headers({
+    Accept: accept || "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
   });
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error("Repository not found or private.");
-    }
-    if (response.status === 403) {
-      throw new Error("GitHub rate limit reached. Try again later or use a local folder.");
-    }
-    throw new Error(`GitHub API ${response.status}`);
+  const trimmed = token?.trim();
+  if (trimmed) headers.set("Authorization", `Bearer ${trimmed}`);
+  return headers;
+}
+
+async function githubFailure(response: Response): Promise<EngineError> {
+  if (response.status === 401) return new EngineError("github-auth", "GitHub token was rejected.");
+  if (response.status === 403 || response.status === 429) {
+    return new EngineError(
+      "github-rate",
+      "GitHub rate limit reached. Add a token or use a local folder.",
+    );
   }
+  if (response.status === 404) {
+    return new EngineError("github-missing", "Repository not found or private.");
+  }
+  return new EngineError("github-status", `GitHub API ${response.status}`);
+}
+
+async function githubJson<T>(url: string, token?: string): Promise<T> {
+  const response = await fetch(url, { headers: githubHeaders(token) });
+  if (!response.ok) throw await githubFailure(response);
   return (await response.json()) as T;
 }
 
@@ -363,47 +518,94 @@ type GithubRepo = {
   default_branch: string;
   description: string | null;
   html_url: string;
-  stargazers_count: number;
 };
 
 type GithubTree = {
   truncated: boolean;
-  tree: Array<{ path: string; type: string; size?: number; url: string }>;
+  tree: Array<{ path: string; type: string; size?: number }>;
 };
 
 export type GithubImport = {
   files: RepoFile[];
   reference: string;
   branch: string;
+  subdir: string;
   name: string;
   description: string;
   truncated: boolean;
 };
 
+async function loadTree(
+  owner: string,
+  repo: string,
+  ref: string,
+  token?: string,
+): Promise<GithubTree | null> {
+  const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`;
+  const response = await fetch(url, { headers: githubHeaders(token) });
+  if (response.status === 404) return null;
+  if (!response.ok) throw await githubFailure(response);
+  return (await response.json()) as GithubTree;
+}
+
 export async function fetchGithubRepo(
   rawUrl: string,
   onProgress?: (message: string) => void,
+  options?: { token?: string },
 ): Promise<GithubImport> {
   const parsed = parseGithubUrl(rawUrl);
-  if (!parsed) throw new Error("Invalid GitHub URL");
+  if (!parsed) throw new EngineError("github-url", "Invalid GitHub URL");
+  const token = options?.token;
   onProgress?.("Fetching repository metadata…");
   const repo = await githubJson<GithubRepo>(
     `https://api.github.com/repos/${parsed.owner}/${parsed.repo}`,
+    token,
   );
-  const branch = repo.default_branch || "main";
+  const defaultBranch = repo.default_branch || "main";
+  let resolved = splitGithubHint(defaultBranch, parsed.hint, parsed.mode);
   onProgress?.("Fetching file tree…");
-  const tree = await githubJson<GithubTree>(
-    `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
-  );
+  let tree: GithubTree | null = null;
+  if (resolved) {
+    tree = await loadTree(parsed.owner, parsed.repo, resolved.branch, token);
+    if (!tree) throw new EngineError("github-missing", "Branch or path was not found.");
+  } else {
+    const parts = (parsed.hint ?? "").split("/").filter(Boolean);
+    const attempts = Math.min(parts.length, 6);
+    for (let i = attempts; i >= 1; i -= 1) {
+      const branch = parts.slice(0, i).join("/");
+      const rest = parts.slice(i).join("/");
+      const found = await loadTree(parsed.owner, parsed.repo, branch, token);
+      if (!found) continue;
+      tree = found;
+      resolved =
+        parsed.mode === "blob" ? blobSplit(branch, rest) : { branch, subdir: rest };
+      break;
+    }
+    if (!resolved || !tree) {
+      throw new EngineError("github-missing", "Branch or path was not found.");
+    }
+  }
+  const location = resolved;
+  if (!location || !tree) {
+    throw new EngineError("github-missing", "Branch or path was not found.");
+  }
+
   const blobs = tree.tree.filter(
     (item) => item.type === "blob" && item.path && !shouldSkipPath(item.path),
   );
-  const files: RepoFile[] = blobs.map((item) => ({
+  let files: RepoFile[] = blobs.map((item) => ({
     path: item.path,
     size: item.size ?? 0,
     type: mimeFor(item.path),
     encoding: isBinaryPath(item.path) ? "binary" : "text",
   }));
+  if (location.filePath) {
+    files = files.filter((file) => file.path === location.filePath);
+  } else if (location.subdir) {
+    const prefix = `${location.subdir.replace(/\/$/, "")}/`;
+    files = files.filter((file) => file.path === location.subdir || file.path.startsWith(prefix));
+  }
+  if (!files.length) throw new EngineError("empty-path", "No files under that GitHub path.");
 
   const candidates = files
     .filter((f) => f.encoding === "text" && f.size > 0 && f.size <= MAX_FILE_CONTENT)
@@ -426,14 +628,15 @@ export async function fetchGithubRepo(
       const next = queue.shift();
       if (!next) break;
       if (used >= MAX_TOTAL_CONTENT) break;
-      const raw = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${encodeURIComponent(branch)}/${next.path
-        .split("/")
-        .map(encodeURIComponent)
-        .join("/")}`;
       try {
-        const res = await fetch(raw);
-        if (!res.ok) continue;
-        const buf = new Uint8Array(await res.arrayBuffer());
+        const buf = await fetchGithubBlob(
+          parsed.owner,
+          parsed.repo,
+          location.branch,
+          next.path,
+          token,
+        );
+        if (!buf) continue;
         if (!looksLikeText(buf)) {
           next.encoding = "binary";
           continue;
@@ -452,11 +655,34 @@ export async function fetchGithubRepo(
   return {
     files: attachContent(files.sort((a, b) => a.path.localeCompare(b.path))),
     reference: repo.html_url,
-    branch,
+    branch: location.branch,
+    subdir: location.subdir,
     name: repo.full_name,
     description: repo.description || "",
     truncated: Boolean(tree.truncated),
   };
+}
+
+async function fetchGithubBlob(
+  owner: string,
+  repo: string,
+  branch: string,
+  path: string,
+  token?: string,
+): Promise<Uint8Array | null> {
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+  if (token?.trim()) {
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`;
+    const response = await fetch(url, {
+      headers: githubHeaders(token, "application/vnd.github.raw"),
+    });
+    if (!response.ok) return null;
+    return new Uint8Array(await response.arrayBuffer());
+  }
+  const raw = `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(branch)}/${encodedPath}`;
+  const response = await fetch(raw);
+  if (!response.ok) return null;
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 function escapeHtml(value: string): string {
@@ -470,6 +696,11 @@ function escapeHtml(value: string): string {
   }).join("");
 }
 
+/** HTML5 ids cannot contain spaces. Percent-encoding keeps the anchor stable. */
+export function htmlAnchorId(path: string): string {
+  return encodeURIComponent(path);
+}
+
 function treeAscii(files: RepoFile[]): string {
   return files
     .slice(0, 400)
@@ -479,20 +710,31 @@ function treeAscii(files: RepoFile[]): string {
 
 export function htmlSkeleton(files: RepoFile[], reference: string, name: string): string {
   const project = slugify(name || reference.split("/").pop() || "local-repository");
-  const rows = files
-    .slice(0, 250)
+  const shown = files.slice(0, 250);
+  const rows = shown
     .map((file) => {
+      const id = escapeHtml(htmlAnchorId(file.path));
       const body =
         file.encoding === "text" && file.content
-          ? `<pre>${escapeHtml(file.content.slice(0, 12_000))}</pre>`
+          ? `<pre>${escapeHtml(file.content.slice(0, 12_000))}${
+              file.content.length > 12_000
+                ? `\n\n[truncated: showing 12000 of ${file.content.length} characters]`
+                : ""
+            }</pre>`
           : `<p class="muted">${file.encoding === "binary" ? "binary" : "no preview"} · ${formatBytes(file.size)}</p>`;
-      return `<article id="${escapeHtml(file.path)}"><h2>${escapeHtml(file.path)}</h2>${body}</article>`;
+      return `<article id="${id}"><h2>${escapeHtml(file.path)}</h2>${body}</article>`;
     })
     .join("\n");
-  const links = files
-    .slice(0, 250)
-    .map((f) => `<li><a href="#${escapeHtml(f.path)}">${escapeHtml(f.path)}</a> <span>${formatBytes(f.size)}</span></li>`)
+  const links = shown
+    .map((file) => {
+      const id = escapeHtml(htmlAnchorId(file.path));
+      return `<li><a href="#${id}">${escapeHtml(file.path)}</a> <span>${formatBytes(file.size)}</span></li>`;
+    })
     .join("\n");
+  const overflow =
+    files.length > shown.length
+      ? `<p class="muted">Showing ${shown.length} of ${files.length} files.</p>`
+      : "";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -517,6 +759,7 @@ export function htmlSkeleton(files: RepoFile[], reference: string, name: string)
     <h1>${escapeHtml(project)}</h1>
     <p>${escapeHtml(reference || "Local folder")} · ${files.length} files</p>
     <h2>Tree</h2>
+    ${overflow}
     <ul>${links}</ul>
     ${rows}
   </main>
@@ -524,17 +767,33 @@ export function htmlSkeleton(files: RepoFile[], reference: string, name: string)
 </html>`;
 }
 
-export function pythonSkeleton(files: RepoFile[], reference: string, source: string): string {
-  const manifest = buildManifest(files, reference, source, undefined, false);
+export function pythonSkeleton(
+  files: RepoFile[],
+  reference: string,
+  source: string,
+  options?: { embedContents?: boolean; branch?: string },
+): string {
+  const manifest = buildManifest(files, reference, source, options?.branch, false);
   const paths =
-    files.slice(0, 40).map((file) => `# - ${file.path}`).join("\n") ||
-    "# No files imported yet.";
+    files.slice(0, 40).map((file) => `# - ${file.path}`).join("\n") || "# No files imported yet.";
+  const embedded = options?.embedContents
+    ? `\nFILE_CONTENTS = ${JSON.stringify(
+        Object.fromEntries(
+          files
+            .filter((file) => file.encoding === "text" && file.content)
+            .map((file) => [file.path, file.content as string]),
+        ),
+        null,
+        2,
+      )}\n`
+    : "";
   return `"""Rekonstruktions-Startpunkt.
 Created by Repository, Rekonstruktion, Run.
+File contents are embedded only when that export option is on.
 """
 
 PROJECT_MANIFEST = ${JSON.stringify(manifest, null, 2)}
-
+${embedded}
 
 def describe_repository():
     return {
@@ -558,22 +817,29 @@ ${paths}
 `;
 }
 
+function promptFileBlock(file: RepoFile): string | null {
+  if (file.encoding !== "text" || !file.content) return null;
+  const fullLength = file.content.length;
+  const truncated = fullLength > PROMPT_FILE_CAP;
+  const body = truncated ? file.content.slice(0, PROMPT_FILE_CAP) : file.content;
+  const note = truncated
+    ? `\n\n[truncated: showing ${PROMPT_FILE_CAP} of ${fullLength} characters]`
+    : "";
+  return `### ${file.path}\n\n\`\`\`\n${body}${note}\n\`\`\``;
+}
+
 export function buildAiPrompt(
   files: RepoFile[],
   reference: string,
   model: AiModel,
+  overrides?: ModelLimitOverrides,
 ): { text: string; chunks: string[]; estimatedTokens: number; limit: number } {
   const spec = MODEL_SPECS[model];
+  const limit = modelLimit(model, overrides);
+  const budget = Math.max(2_000, Math.floor(limit * 0.72) * 4);
   const entries =
     files.map((file) => `- \`${file.path}\` (${formatBytes(file.size)})`).join("\n") ||
     "- No local files selected yet.";
-  const bodies = files
-    .filter((f) => f.encoding === "text" && f.content)
-    .map(
-      (f) =>
-        `### ${f.path}\n\n\`\`\`\n${f.content!.slice(0, 8_000)}\n\`\`\``,
-    )
-    .join("\n\n");
   const header = `# Repository reconstruction for ${model}
 
 ## System instruction
@@ -589,28 +855,59 @@ ${entries}
 ## Task
 Analyse this repository structure. Explain architecture, dependencies and missing core modules. Then produce a prioritised reconstruction plan and use compatible Markdown code blocks for every code proposal.
 `;
+  const blocks = files
+    .map(promptFileBlock)
+    .filter((block): block is string => Boolean(block));
   const manifestBlock = `\n## Manifest\n\n\`\`\`json\n${JSON.stringify(buildManifest(files, reference, "client", undefined, false), null, 2)}\n\`\`\`\n`;
-  const text = `${header}${bodies ? `\n## File contents\n\n${bodies}\n` : ""}${manifestBlock}`;
-  const estimatedTokens = Math.ceil(text.length / 4);
-  const budget = Math.max(2000, Math.floor(spec.limit * 0.72) * 4);
+  const single = `${header}${blocks.length ? `\n## File contents\n\n${blocks.join("\n\n")}\n` : ""}${manifestBlock}`;
+  if (single.length <= budget) {
+    const estimatedTokens = Math.ceil(single.length / 4);
+    return { text: single, chunks: [single], estimatedTokens, limit };
+  }
+
   const chunks: string[] = [];
-  if (text.length <= budget) {
-    chunks.push(text);
-  } else {
-    const prefix = `${header}\n> Chunked export. Continue from the previous chunk without repeating the system instruction unless needed.\n\n`;
-    const rest = `${bodies}\n${manifestBlock}`;
-    let offset = 0;
-    let index = 1;
-    const piece = Math.max(4000, budget - prefix.length - 80);
-    while (offset < rest.length) {
-      chunks.push(
-        `${prefix}## Chunk ${index}\n\n${rest.slice(offset, offset + piece)}`,
-      );
-      offset += piece;
-      index += 1;
+  const continuation = `# Continuation for ${model}
+
+> Continuation chunk. The system instruction and file tree appear only in chunk 1.
+`;
+  let current = `${header}\n## File contents\n\n`;
+  let started = false;
+  const flush = () => {
+    const trimmed = current.trimEnd();
+    if (trimmed) chunks.push(trimmed);
+  };
+
+  for (const block of blocks) {
+    const addition = `${started ? "\n\n" : ""}${block}`;
+    if (started && current.length + addition.length > budget) {
+      flush();
+      current = `${continuation}\n## File contents\n\n${block}`;
+      started = true;
+    } else {
+      current += addition;
+      started = true;
     }
   }
-  return { text, chunks, estimatedTokens, limit: spec.limit };
+
+  const withManifest = `${current.trimEnd()}${manifestBlock}`;
+  if (withManifest.length <= budget) {
+    current = withManifest;
+    flush();
+  } else {
+    if (current.trim() && current.trim() !== continuation.trim()) flush();
+    chunks.push(`${continuation.trimEnd()}${manifestBlock}`.trimEnd());
+  }
+
+  const stamped = chunks.map(
+    (chunk, index) => `<!-- chunk ${index + 1}/${chunks.length} -->\n${chunk}`,
+  );
+  const text = stamped.join("\n\n---\n\n");
+  return {
+    text,
+    chunks: stamped,
+    estimatedTokens: Math.ceil(text.length / 4),
+    limit,
+  };
 }
 
 export function triggerDownload(blob: Blob, filename: string) {
@@ -623,31 +920,48 @@ export function triggerDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1500);
 }
 
+export type ExportOptions = {
+  includeSecrets?: boolean;
+  embedContents?: boolean;
+  branch?: string;
+};
+
 export async function exportZip(
   kind: "html" | "json" | "python",
   files: RepoFile[],
   reference: string,
   source: string,
+  options?: ExportOptions,
 ): Promise<string> {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
+  const safe = filesForExport(files, options?.includeSecrets);
   const name = slugify(reference.split("/").pop() || "repository-rekonstruktion");
-  const manifest = buildManifest(files, reference, source, undefined, false);
+  const manifest = buildManifest(safe, reference, source, options?.branch, false);
   zip.file("repository-manifest.json", JSON.stringify(manifest, null, 2));
   if (kind === "html") {
-    zip.file("index.html", htmlSkeleton(files, reference, name));
+    zip.file("index.html", htmlSkeleton(safe, reference, name));
     const folder = zip.folder("files");
-    for (const file of files) {
+    for (const file of safe) {
       if (file.encoding === "text" && file.content && folder) {
         folder.file(file.path, file.content);
       }
     }
   }
   if (kind === "json") {
-    zip.file("repository.json", JSON.stringify(buildManifest(files, reference, source, undefined, true), null, 2));
+    zip.file(
+      "repository.json",
+      JSON.stringify(buildManifest(safe, reference, source, options?.branch, true), null, 2),
+    );
   }
   if (kind === "python") {
-    zip.file("main.py", pythonSkeleton(files, reference, source));
+    zip.file(
+      "main.py",
+      pythonSkeleton(safe, reference, source, {
+        embedContents: options?.embedContents,
+        branch: options?.branch,
+      }),
+    );
   }
   const blob = await zip.generateAsync({ type: "blob" });
   triggerDownload(blob, `${name}-${kind}.zip`);
