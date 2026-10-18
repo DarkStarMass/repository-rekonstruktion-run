@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { FolderSearch, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
-import { formatDate, formatNumber, t } from "@/lib/i18n";
+import { formatDate, formatNumber, t, type Locale } from "@/lib/i18n";
 import {
+  MODEL_SPECS,
+  MODEL_SPECS_AS_OF,
   buildAiPrompt,
   buildManifest,
   exportAiChunks,
   exportZip,
   fetchGithubRepo,
+  filesForExport,
   formatBytes,
   htmlSkeleton,
   parseGithubUrl,
@@ -18,9 +21,12 @@ import {
   readFolderFiles,
   readZipFiles,
   sampleFiles,
+  scanSecrets,
   slugify,
   triggerDownload,
+  EngineError,
   type AiModel,
+  type RepoFile,
 } from "@/lib/repo-engine";
 import { useAppStore, type ViewId } from "@/lib/store";
 
@@ -42,6 +48,48 @@ function HelpBanner({ title, body }: { title: string; body: string }) {
   );
 }
 
+function importMessage(error: unknown, lang: Locale): string {
+  const code = error instanceof EngineError ? error.code : "";
+  if (code === "zip-files") return t(lang, "import.zipTooMany");
+  if (code === "zip-bytes") return t(lang, "import.zipTooBig");
+  if (code === "zip-entry") return t(lang, "import.zipEntry");
+  if (code === "empty-path") return t(lang, "import.emptyPath");
+  const message = error instanceof Error ? error.message : "unknown";
+  return t(lang, "import.error", { message });
+}
+
+function SecretNotice({ files }: { files: RepoFile[] }) {
+  const lang = useAppStore((s) => s.lang);
+  const includeSecrets = useAppStore((s) => s.includeSecrets);
+  const setIncludeSecrets = useAppStore((s) => s.setIncludeSecrets);
+  const hits = useMemo(() => scanSecrets(files), [files]);
+  if (!hits.length) return null;
+  return (
+    <div className="mt-4 rounded-md border border-signal bg-sage p-4" role="status">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-bold">{t(lang, "secrets.title")}</h3>
+        <span className="font-mono text-xs">{t(lang, "secrets.count", { count: hits.length })}</span>
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-muted">{t(lang, "secrets.body")}</p>
+      <ul className="mt-3 max-h-36 space-y-1 overflow-auto font-mono text-xs">
+        {hits.map((hit) => (
+          <li key={`${hit.path}:${hit.label}`}>
+            {hit.path} · {t(lang, hit.kind === "filename" ? "secrets.file" : "secrets.pattern")}
+          </li>
+        ))}
+      </ul>
+      <label className="mt-3 flex min-h-11 items-center gap-3 text-sm font-semibold">
+        <input
+          type="checkbox"
+          checked={includeSecrets}
+          onChange={(event) => setIncludeSecrets(event.target.checked)}
+        />
+        {t(lang, "secrets.include")}
+      </label>
+    </div>
+  );
+}
+
 export function HomeView() {
   const lang = useAppStore((s) => s.lang);
   const files = useAppStore((s) => s.files);
@@ -54,8 +102,11 @@ export function HomeView() {
   const ingest = useAppStore((s) => s.ingest);
   const addHistory = useAppStore((s) => s.addHistory);
   const clearHistory = useAppStore((s) => s.clearHistory);
+  const branch = useAppStore((s) => s.branch);
+  const subdir = useAppStore((s) => s.subdir);
   const folderRef = useRef<HTMLInputElement>(null);
   const zipRef = useRef<HTMLInputElement>(null);
+  const [token, setToken] = useState("");
 
   useEffect(() => {
     const el = folderRef.current;
@@ -76,12 +127,15 @@ export function HomeView() {
     }
     setStatus("loading", t(lang, "import.loading"));
     try {
-      const result = await fetchGithubRepo(value, (msg) => setStatus("loading", msg));
+      const result = await fetchGithubRepo(value, (msg) => setStatus("loading", msg), {
+        token,
+      });
       ingest({
         files: result.files,
         source: "github",
         repoName: result.name,
         branch: result.branch,
+        subdir: result.subdir,
         githubUrl: result.reference,
         detail: result.truncated
           ? t(lang, "import.githubPartial")
@@ -89,8 +143,7 @@ export function HomeView() {
       });
       addHistory("action.github", "—", "ok");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "unknown";
-      setStatus("error", t(lang, "import.error", { message }));
+      setStatus("error", importMessage(error, lang));
       addHistory("action.githubRef", "—", "error");
     }
   }
@@ -108,8 +161,7 @@ export function HomeView() {
       });
       addHistory("action.folder", "—", "ok");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "unknown";
-      setStatus("error", t(lang, "import.error", { message }));
+      setStatus("error", importMessage(error, lang));
       addHistory("action.folder", "—", "error");
     }
   }
@@ -128,8 +180,7 @@ export function HomeView() {
       });
       addHistory("action.zip", "—", "ok");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "unknown";
-      setStatus("error", t(lang, "import.error", { message }));
+      setStatus("error", importMessage(error, lang));
       addHistory("action.zip", "—", "error");
     }
   }
@@ -198,6 +249,20 @@ export function HomeView() {
                 {t(lang, "import.githubButton")}
               </button>
             </div>
+            <label className="mt-4 block text-sm font-semibold" htmlFor="github-token">
+              {t(lang, "import.tokenLabel")}
+            </label>
+            <input
+              id="github-token"
+              className="field font-mono text-sm"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={t(lang, "import.tokenPlaceholder")}
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+            />
+            <p className="text-sm leading-relaxed text-muted">{t(lang, "import.tokenHelp")}</p>
           </form>
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-line" />
@@ -243,6 +308,7 @@ export function HomeView() {
             onChange={(event) => void onZip(event)}
           />
           <p className="mt-4 text-sm leading-relaxed text-muted">{t(lang, "import.privacy")}</p>
+          <SecretNotice files={files} />
           <p id="import-status" className="mt-4 text-sm font-semibold" aria-live="polite">
             {status === "loading" ? (
               <span className="inline-flex items-center gap-2">
@@ -269,6 +335,15 @@ export function HomeView() {
               <dt className="text-sm text-muted">{t(lang, "analysis.size")}</dt>
               <dd className="font-mono font-bold tabular-nums">{formatBytes(total)}</dd>
             </div>
+            {branch ? (
+              <div className="flex justify-between gap-4 border-b border-line pb-3">
+                <dt className="text-sm text-muted">{t(lang, "analysis.ref")}</dt>
+                <dd className="max-w-[60%] truncate text-right font-mono text-xs font-bold">
+                  {branch}
+                  {subdir ? `/${subdir}` : ""}
+                </dd>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-4">
               <dt className="text-sm text-muted">{t(lang, "analysis.state")}</dt>
               <dd className="font-mono text-sm font-bold">{stateLabel}</dd>
@@ -362,20 +437,34 @@ export function ExportView({ kind }: { kind: "html" | "json" | "python" }) {
   const files = useAppStore((s) => s.files);
   const githubUrl = useAppStore((s) => s.githubUrl);
   const source = useAppStore((s) => s.source);
+  const branch = useAppStore((s) => s.branch);
+  const includeSecrets = useAppStore((s) => s.includeSecrets);
+  const embedPython = useAppStore((s) => s.embedPython);
+  const setEmbedPython = useAppStore((s) => s.setEmbedPython);
   const addHistory = useAppStore((s) => s.addHistory);
   const reference = githubUrl || "Local folder";
+  const safe = useMemo(() => filesForExport(files, includeSecrets), [files, includeSecrets]);
   const preview = useMemo(() => {
-    if (kind === "html") return htmlSkeleton(files, reference, reference);
-    if (kind === "python") return pythonSkeleton(files, reference, source || "client");
+    if (kind === "html") return htmlSkeleton(safe, reference, reference);
+    if (kind === "python") {
+      return pythonSkeleton(safe, reference, source || "client", {
+        embedContents: embedPython,
+        branch: branch || undefined,
+      });
+    }
     return JSON.stringify(
-      buildManifest(files, reference, source || "client", undefined, true),
+      buildManifest(safe, reference, source || "client", branch || undefined, true),
       null,
       2,
     );
-  }, [kind, files, reference, source]);
+  }, [kind, safe, reference, source, embedPython, branch]);
 
   async function onExport() {
-    await exportZip(kind, files, reference, source || "client");
+    await exportZip(kind, files, reference, source || "client", {
+      includeSecrets,
+      embedContents: kind === "python" && embedPython,
+      branch: branch || undefined,
+    });
     addHistory(`action.${kind}`, "—", "ok");
     toast(t(lang, "toast.zip"));
   }
@@ -387,7 +476,22 @@ export function ExportView({ kind }: { kind: "html" | "json" | "python" }) {
       </p>
       <h2 className="text-2xl font-extrabold">{t(lang, `${kind}.title`)}</h2>
       <HelpBanner title={t(lang, `${kind}.helpTitle`)} body={t(lang, `${kind}.help`)} />
+      <SecretNotice files={files} />
       <div className="panel mt-6 rounded-md p-5 sm:p-7">
+        {kind === "python" ? (
+          <label className="mb-4 flex min-h-11 items-start gap-3 text-sm">
+            <input
+              className="mt-1"
+              type="checkbox"
+              checked={embedPython}
+              onChange={(event) => setEmbedPython(event.target.checked)}
+            />
+            <span>
+              <span className="font-semibold">{t(lang, "python.embed")}</span>
+              <span className="mt-1 block text-muted">{t(lang, "python.embedHelp")}</span>
+            </span>
+          </label>
+        ) : null}
         <CodePreview code={preview} empty={t(lang, "common.noData")} />
         <button
           type="button"
@@ -409,10 +513,15 @@ export function AiView() {
   const aiChunk = useAppStore((s) => s.aiChunk);
   const setModel = useAppStore((s) => s.setModel);
   const setAiChunk = useAppStore((s) => s.setAiChunk);
+  const includeSecrets = useAppStore((s) => s.includeSecrets);
+  const modelLimits = useAppStore((s) => s.modelLimits);
+  const setModelLimit = useAppStore((s) => s.setModelLimit);
+  const resetModelLimits = useAppStore((s) => s.resetModelLimits);
   const addHistory = useAppStore((s) => s.addHistory);
+  const safe = useMemo(() => filesForExport(files, includeSecrets), [files, includeSecrets]);
   const pack = useMemo(
-    () => buildAiPrompt(files, githubUrl || "Local folder", model),
-    [files, githubUrl, model],
+    () => buildAiPrompt(safe, githubUrl || "Local folder", model, modelLimits),
+    [safe, githubUrl, model, modelLimits],
   );
   const current = pack.chunks[Math.min(aiChunk, pack.chunks.length - 1)] ?? pack.text;
 
@@ -449,6 +558,7 @@ export function AiView() {
       </p>
       <h2 className="text-2xl font-extrabold">{t(lang, "ai.title")}</h2>
       <HelpBanner title={t(lang, "ai.helpTitle")} body={t(lang, "ai.help")} />
+      <SecretNotice files={files} />
       <div className="panel mt-6 rounded-md p-5 sm:p-7">
         <label className="mb-2 block font-bold" htmlFor="model-select">
           {t(lang, "ai.model")}
@@ -496,6 +606,34 @@ export function AiView() {
           </div>
         ) : null}
         <p className="mt-4 text-sm leading-relaxed text-muted">{t(lang, "ai.englishNote")}</p>
+        <div className="mt-4 rounded-md border border-line p-4">
+          <p className="text-sm leading-relaxed text-muted">
+            {t(lang, "ai.limitsDate", { date: MODEL_SPECS_AS_OF })}
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {(["Gemini", "Claude", "Grok", "TeraAI"] as AiModel[]).map((value) => (
+              <label key={value} className="text-sm font-semibold" htmlFor={`limit-${value}`}>
+                {t(lang, "ai.limitFor", { model: value })}
+                <input
+                  id={`limit-${value}`}
+                  className="field mt-1"
+                  type="number"
+                  min={1000}
+                  inputMode="numeric"
+                  value={modelLimits[value] ?? MODEL_SPECS[value].limit}
+                  onChange={(event) => setModelLimit(value, Number(event.target.value))}
+                />
+              </label>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="quiet mt-3 inline-flex min-h-11 items-center rounded-md px-4 py-2 text-sm font-bold"
+            onClick={resetModelLimits}
+          >
+            {t(lang, "ai.resetLimits")}
+          </button>
+        </div>
         <div className="mt-4">
           <CodePreview code={current} empty={t(lang, "common.noData")} />
         </div>
@@ -534,6 +672,10 @@ export function InfoView() {
         <div className="mt-6 border-t border-line pt-5">
           <h3 className="text-lg font-bold">{t(lang, "info.privacyTitle")}</h3>
           <p className="mt-3 text-muted">{t(lang, "info.privacyBody")}</p>
+        </div>
+        <div className="mt-6 border-t border-line pt-5">
+          <h3 className="text-lg font-bold">{t(lang, "info.secretsTitle")}</h3>
+          <p className="mt-3 text-muted">{t(lang, "info.secretsBody")}</p>
         </div>
         <div className="mt-6 border-t border-line pt-5">
           <h3 className="text-lg font-bold">{t(lang, "info.viewsTitle")}</h3>

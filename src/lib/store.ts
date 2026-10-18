@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Locale } from "./i18n";
-import type { AiModel, RepoFile } from "./repo-engine";
+import type { AiModel, ModelLimitOverrides, RepoFile } from "./repo-engine";
 
 export type ViewId = "home" | "html" | "json" | "python" | "ai" | "info";
 export type ThemeMode = "auto" | "light" | "dark" | "contrast";
@@ -21,6 +21,9 @@ type Prefs = {
   layout: LayoutMode;
   model: AiModel;
   githubUrl: string;
+  includeSecrets: boolean;
+  embedPython: boolean;
+  modelLimits: ModelLimitOverrides;
 };
 
 const PREFS_KEY = "rrr-prefs";
@@ -51,6 +54,10 @@ type AppState = Prefs & {
   source: string;
   repoName: string;
   branch: string;
+  subdir: string;
+  includeSecrets: boolean;
+  embedPython: boolean;
+  modelLimits: ModelLimitOverrides;
   status: WorkStatus;
   statusDetail: string;
   history: HistoryEntry[];
@@ -62,12 +69,17 @@ type AppState = Prefs & {
   setModel: (model: AiModel) => void;
   setView: (view: ViewId) => void;
   setGithubUrl: (url: string) => void;
+  setIncludeSecrets: (value: boolean) => void;
+  setEmbedPython: (value: boolean) => void;
+  setModelLimit: (model: AiModel, limit: number) => void;
+  resetModelLimits: () => void;
   setStatus: (status: WorkStatus, detail?: string) => void;
   ingest: (payload: {
     files: RepoFile[];
     source: string;
     repoName?: string;
     branch?: string;
+    subdir?: string;
     githubUrl?: string;
     detail: string;
   }) => void;
@@ -85,6 +97,9 @@ function persist(state: AppState) {
     layout: state.layout,
     model: state.model,
     githubUrl: state.githubUrl,
+    includeSecrets: state.includeSecrets,
+    embedPython: state.embedPython,
+    modelLimits: state.modelLimits,
   };
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
   localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history.slice(0, 10)));
@@ -101,6 +116,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   source: "",
   repoName: "",
   branch: "",
+  subdir: "",
+  includeSecrets: false,
+  embedPython: false,
+  modelLimits: {},
   status: "idle",
   statusDetail: "",
   history: [],
@@ -127,13 +146,33 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ githubUrl });
     persist(get());
   },
+  setIncludeSecrets: (includeSecrets) => {
+    set({ includeSecrets });
+    persist(get());
+  },
+  setEmbedPython: (embedPython) => {
+    set({ embedPython });
+    persist(get());
+  },
+  setModelLimit: (model, limit) => {
+    const next = { ...get().modelLimits };
+    if (!Number.isFinite(limit) || limit < 1_000) delete next[model];
+    else next[model] = Math.floor(limit);
+    set({ modelLimits: next, aiChunk: 0 });
+    persist(get());
+  },
+  resetModelLimits: () => {
+    set({ modelLimits: {}, aiChunk: 0 });
+    persist(get());
+  },
   setStatus: (status, detail = "") => set({ status, statusDetail: detail }),
-  ingest: ({ files, source, repoName, branch, githubUrl, detail }) => {
+  ingest: ({ files, source, repoName, branch, subdir, githubUrl, detail }) => {
     set({
       files,
       source,
       repoName: repoName ?? "",
       branch: branch ?? "",
+      subdir: subdir ?? "",
       githubUrl: githubUrl ?? get().githubUrl,
       status: "ready",
       statusDetail: detail,
@@ -166,6 +205,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       layout: prefs.layout ?? "auto",
       model: prefs.model ?? "Grok",
       githubUrl: prefs.githubUrl ?? "",
+      includeSecrets: prefs.includeSecrets ?? false,
+      embedPython: prefs.embedPython ?? false,
+      modelLimits: prefs.modelLimits ?? {},
       history: readHistory(),
       hydrated: true,
     });
